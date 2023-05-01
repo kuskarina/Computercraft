@@ -1,20 +1,24 @@
-from scapy.all import ARP, Ether, srp
+import socket
+import ipaddress
+import subprocess
 
-# create an ARP request packet to get MAC and IP address of devices on the local network
-arp = ARP(pdst="192.168.1.0/24")
-ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-packet = ether/arp
+# get the IP address of the local machine
+hostname = socket.gethostname()
+local_ip = socket.gethostbyname(hostname)
 
-# send the packet and capture the response
-result = srp(packet, timeout=3, verbose=0)[0]
+# get the network address from the local IP address
+network = ipaddress.ip_network(f'{local_ip}/24', strict=False)
 
-# create a list of active devices
-devices = []
-for sent, received in result:
-    devices.append({'ip': received.psrc, 'mac': received.hwsrc})
+# function to ping an IP address and check if it's active
+def ping(host):
+    result = subprocess.run(['ping', '-c', '1', '-W', '1', str(host)], capture_output=True)
+    return result.returncode == 0
+
+# create a list of active devices on the network
+devices = [str(ip) for ip in network.hosts() if ping(ip)]
 
 # print out the list of active devices
 print("Active devices on the network:")
 print("-----------------------------")
 for device in devices:
-    print(f"IP: {device['ip']}   MAC: {device['mac']}")
+    print(device)
